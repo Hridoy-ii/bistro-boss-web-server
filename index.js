@@ -3,8 +3,14 @@ const app = express();
 const cors = require('cors');
 // jwt
 const jwt = require('jsonwebtoken');
+
+
 require('dotenv').config()
 const port = process.env.PORT || 5000;
+
+// Payment option start
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+// Payment option end
 
 // middleware
 app.use(cors());
@@ -13,6 +19,7 @@ app.use(express.json());
 
 
 const { MongoClient, ServerApiVersion, ObjectId, ObjectID } = require('mongodb');
+const { default: Stripe } = require('stripe');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.qwzhyfr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -33,6 +40,7 @@ async function run() {
     const menuCollection = client.db("bistroDB").collection("menu");
     const reviewCollection = client.db("bistroDB").collection("reviews");
     const cartsCollection = client.db("bistroDB").collection("carts");
+    const paymentCollection = client.db("bistroDB").collection("payments");
 
     // jwt related api
     app.post('/jwt', async (req, res) => {
@@ -83,6 +91,24 @@ async function run() {
       res.send(result);
     });
 
+    // admin checking 
+    app.get('/users/admin/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === 'admin';
+
+      }
+      res.send({ admin });
+    })
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       // insert email id if doesn't exist
@@ -96,40 +122,11 @@ async function run() {
       res.send(result);
     })
 
-    // admin user
-    app.get('/users/admin/:email', verifyToken, verifyAdmin, async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: 'forbidden access' });
-      }
-
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      let admin = false;
-      if (user) {
-        admin = user?.role === 'admin';
-      }
-      res.send({ admin });
-    })
-
-    app.get('/menu', async (req, res) => {
-      const result = await menuCollection.find().toArray();
-      res.send(result);
-    })
-
-    // finding for specific menu item by id
-    app.get('/menu/:id', async (req, res)=>{
-      const id = req.params.id;
-      const query = {_id: ObjectId(id)};
-      const result = await menuCollection.findOne(query);
-      res.send(result);
-    })
-
     // updating specific item using patch()
-    app.patch('/menu/:id', async (req, res)=>{
+    app.patch('/menu/:id', async (req, res) => {
       const item = req.body;
       const id = req.params.id;
-      const filter = {_id: ObjectId(id)}
+      const filter = { _id: ObjectId(id) }
       const updateItem = {
         $set: {
           name: item.name,
@@ -139,10 +136,50 @@ async function run() {
           image: item.image
         }
       }
-      
+
       const result = await menuCollection.updateOne(filter, updateItem);
       res.send(result);
     })
+
+    // delete user
+    app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await menuCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // admin user
+    // app.get('/users/admin/:email', verifyToken, verifyAdmin, async (req, res) => {
+    //   const email = req.params.email;
+    //   if (email !== req.decoded.email) {
+    //     return res.status(403).send({ message: 'forbidden access' });
+    //   }
+
+    //   const query = { email: email };
+    //   const user = await userCollection.findOne(query);
+    //   let admin = false;
+    //   if (user) {
+    //     admin = user?.role === 'admin';
+    //   }
+    //   res.send({ admin });
+    // })
+
+    //  menu related api
+    app.get('/menu', async (req, res) => {
+      const result = await menuCollection.find().toArray();
+      res.send(result);
+    })
+
+    // finding for specific menu item by id
+    app.get('/menu/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await menuCollection.findOne(query);
+      res.send(result);
+    })
+
+
 
     app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
       const item = req.body;
@@ -150,12 +187,7 @@ async function run() {
       res.send(result);
     })
 
-    app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await menuCollection.deleteOne(query);
-      res.send(result);
-    });
+
 
     // Carts collection
     app.get('/carts', async (req, res) => {
@@ -198,6 +230,64 @@ async function run() {
       res.send(result);
     })
 
+    // Payment option start
+
+    app.post('/create-payment-intent', async (req, res) => {
+      try {
+        const { price } = req.body;
+        if (!price || price <= 0) {
+          // Return a 400 status for an invalid price, not 500
+          return res.status(400).send({ error: "Invalid price" });
+        }
+        const amount = parseInt(price * 100);
+        console.log(amount, 'amount inside the intent')
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card']
+        });
+
+        res.send({
+          clientSecret: paymentIntent.client_secret
+        })
+      } catch (error) {
+        console.error('Error in /create-payment-intent endpoint:', error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // payment History
+    app.get('/payments/:email', verifyToken, async(req, res) =>{
+      const query = {email: req.params.email}
+      if(req.params.email !== req.decoded.email) {
+        return res.status(403).send({message: "Forbidden Access"});
+      }// verify if anyone try to fetch another person's history
+      const result = await paymentCollection.find(query).toArray();
+      res.send(result);
+
+    }) // TODO: USE THIS API TO SHOW THE PAYMENT HISTORY
+
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+
+      // console.log('Payment info saved on database:', payment);
+      // delete carefully each item from the cart
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => ObjectId(id))
+        }
+      };
+
+      const deleteResult = await cartsCollection.deleteMany(query);
+
+      res.send({ paymentResult, deleteResult });
+
+    })
+
+    //----------------- Payment option end --------------------------
+
     // delete user
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -237,4 +327,5 @@ app.listen(port, () => {
  * app.put('/users/:id')
  * app.patch('/users/:id')
  * app.delete('/users/:id')
+ * 
 */
