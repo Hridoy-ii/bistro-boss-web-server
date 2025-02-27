@@ -6,7 +6,12 @@ const jwt = require('jsonwebtoken');
 
 
 require('dotenv').config()
-const port = process.env.PORT || 5000;
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 5000;
+  app.listen(port, () => {
+    console.log(`Bistro boss is sitting on port ${port}`);
+  });
+}
 
 // Payment option start
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -122,6 +127,59 @@ async function run() {
       res.send(result);
     })
 
+    // Patch or update user data
+    app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: 'admin'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    })
+
+
+    // delete user
+    app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
+    //  menu related api
+    app.get('/menu', async (req, res) => {
+      try {
+        const result = await menuCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error in PATCH /menu :", error);
+        res.status(500).send({ error: error.message });
+      }
+    })
+
+    app.get('/menu/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: ObjectId(id) };
+        const result = await menuCollection.findOne(query);
+        res.send(result);
+      } catch (error) {
+        console.error("Error in PATCH /menu/:id:", error);
+        res.status(500).send({ error: error.message });
+      }
+
+    })
+
+    app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body;
+      const result = await menuCollection.insertOne(item);
+      res.send(result);
+    })
+
     // updating specific item using patch()
     app.patch('/menu/:id', async (req, res) => {
       const item = req.body;
@@ -141,7 +199,8 @@ async function run() {
       res.send(result);
     })
 
-    // delete user
+
+    // delete menu
     app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
@@ -165,25 +224,11 @@ async function run() {
     //   res.send({ admin });
     // })
 
-    //  menu related api
-    app.get('/menu', async (req, res) => {
-      const result = await menuCollection.find().toArray();
-      res.send(result);
-    })
-
-    // finding for specific menu item by id
-    app.get('/menu/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await menuCollection.findOne(query);
-      res.send(result);
-    })
 
 
 
-    app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
-      const item = req.body;
-      const result = await menuCollection.insertOne(item);
+    app.get('/reviews', async (req, res) => {
+      const result = await reviewCollection.find().toArray();
       res.send(result);
     })
 
@@ -191,36 +236,34 @@ async function run() {
 
     // Carts collection
     app.get('/carts', async (req, res) => {
-      const email = req.query.email;
-      const query = { email: email };
-      const result = await cartsCollection.find(query).toArray();
-      res.send(result);
+      try {
+
+        const email = req.query.email;
+        const query = { email: email };
+        const result = await cartsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error in PATCH /carts :", error);
+        res.status(500).send({ error: error.message });
+      }
     })
 
-    app.get('/reviews', async (req, res) => {
-      const result = await reviewCollection.find().toArray();
-      res.send(result);
-    })
+
 
     // carts collection
     app.post('/carts', async (req, res) => {
-      const cartItem = req.body;
-      const result = await cartsCollection.insertOne(cartItem);
-      res.send(result);
+      try {
+        const cartItem = req.body;
+        const result = await cartsCollection.insertOne(cartItem);
+        res.send(result);
+      } catch (error) {
+        console.error("Error in PATCH /carts :", error);
+        res.status(500).send({ error: error.message });
+      }
+
     })
 
-    // Patch or update data
-    app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          role: 'admin'
-        }
-      }
-      const result = await userCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    })
+
 
     // to delete a item
     app.delete('/carts/:id', async (req, res) => {
@@ -230,8 +273,8 @@ async function run() {
       res.send(result);
     })
 
-    // Payment option start
 
+    // Payment option start
     app.post('/create-payment-intent', async (req, res) => {
       try {
         const { price } = req.body;
@@ -356,17 +399,11 @@ async function run() {
 
     // Admin dashboard end
 
-    // delete user
-    app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await userCollection.deleteOne(query);
-      res.send(result);
-    })
+
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
