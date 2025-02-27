@@ -258,10 +258,10 @@ async function run() {
     });
 
     // payment History
-    app.get('/payments/:email', verifyToken, async(req, res) =>{
-      const query = {email: req.params.email}
-      if(req.params.email !== req.decoded.email) {
-        return res.status(403).send({message: "Forbidden Access"});
+    app.get('/payments/:email', verifyToken, async (req, res) => {
+      const query = { email: req.params.email }
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: "Forbidden Access" });
       }// verify if anyone try to fetch another person's history
       const result = await paymentCollection.find(query).toArray();
       res.send(result);
@@ -287,6 +287,74 @@ async function run() {
     })
 
     //----------------- Payment option end --------------------------
+
+
+    // -------------- Admin Dashboard Status --------
+    app.get('/admin-status', verifyToken, verifyAdmin, async (req, res) => {
+      const users = await userCollection.estimatedDocumentCount(); // counting the total users 
+      const menuItems = await menuCollection.estimatedDocumentCount();
+      const orders = await paymentCollection.estimatedDocumentCount();
+
+      const result = await paymentCollection.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: '$price'
+            }
+          }
+        }
+      ]).toArray();
+
+      const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+
+      res.send({
+        users,
+        menuItems,
+        orders,
+        revenue
+      })
+    })
+
+
+    // aggregating database for showing multiple data info in a single api
+    app.get('/order-stats', verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentCollection.aggregate([
+        {
+          $unwind: '$menuItemIds'
+        },
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItemIds',
+            foreignField: '_id',
+            as: 'menuItems'
+          }
+        },
+        {
+          $unwind: '$menuItems'
+        },
+        {
+          $group: {
+            _id: '$menuItems.category',
+            quantity: { $sum: 1 },
+            revenue: { $sum: '$menuItems.price' }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            category: '$_id',
+            quantity: '$quantity',
+            revenue: '$revenue'
+          }
+        }
+      ]).toArray();
+
+      res.send(result)
+    })
+
+    // Admin dashboard end
 
     // delete user
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
