@@ -6,12 +6,7 @@ const jwt = require('jsonwebtoken');
 
 
 require('dotenv').config()
-if (process.env.NODE_ENV !== 'production') {
-  const port = process.env.PORT || 5000;
-  app.listen(port, () => {
-    console.log(`Bistro boss is sitting on port ${port}`);
-  });
-}
+const port = process.env.PORT || 5000;
 
 // Payment option start
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -39,7 +34,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const userCollection = client.db("bistroDB").collection("user");
     const menuCollection = client.db("bistroDB").collection("menu");
@@ -140,7 +135,7 @@ async function run() {
       res.send(result);
     })
 
-
+    
     // delete user
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -224,7 +219,7 @@ async function run() {
     //   res.send({ admin });
     // })
 
-
+   
 
 
     app.get('/reviews', async (req, res) => {
@@ -248,7 +243,7 @@ async function run() {
       }
     })
 
-
+    
 
     // carts collection
     app.post('/carts', async (req, res) => {
@@ -263,7 +258,7 @@ async function run() {
 
     })
 
-
+    
 
     // to delete a item
     app.delete('/carts/:id', async (req, res) => {
@@ -399,7 +394,7 @@ async function run() {
 
     // Admin dashboard end
 
-
+    
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
