@@ -1,12 +1,32 @@
 const express = require('express');
+const serverless = require('serverless-http');
 const app = express();
 const cors = require('cors');
-// jwt
+const corsConfig = {
+  origin: "*", // Allow all origins
+  Credential: true, // Allow credentials
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Allow all
+}
+app.options('*', cors(corsConfig)); // Preflight request for all routes
+app.use(cors(corsConfig)); // Use the CORS configuration
 const jwt = require('jsonwebtoken');
 
 
 require('dotenv').config()
 const port = process.env.PORT || 5000;
+
+// MailGun for sending email
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
+const mailgun = new Mailgun(formData);
+
+
+// Mailgun API key and domain
+const mg = mailgun.client({
+  username: 'api',  // Mailgun API username
+  key: process.env.MAILGUN_API_KEY, // Mailgun API key  
+  url: 'https://api.mailgun.net' // Mailgun API URL
+});
 
 // Payment option start
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -135,7 +155,7 @@ async function run() {
       res.send(result);
     })
 
-    
+
     // delete user
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -219,7 +239,7 @@ async function run() {
     //   res.send({ admin });
     // })
 
-   
+
 
 
     app.get('/reviews', async (req, res) => {
@@ -243,7 +263,7 @@ async function run() {
       }
     })
 
-    
+
 
     // carts collection
     app.post('/carts', async (req, res) => {
@@ -258,7 +278,7 @@ async function run() {
 
     })
 
-    
+
 
     // to delete a item
     app.delete('/carts/:id', async (req, res) => {
@@ -319,6 +339,28 @@ async function run() {
       };
 
       const deleteResult = await cartsCollection.deleteMany(query);
+
+
+      // send email to the user about the payment confirmation
+
+      mg.messages
+        .create(process.env.MAILGUN_DOMAIN, {
+          from: `Excited User <mailgun@${process.env.MAILGUN_DOMAIN}>`,
+          to: ["nmohammad.hriidoy@gamil.com"],
+          subject: "Mailgun test",
+          text: "Testing some Mailgun awesomness and it says your order is confirm!",
+          html: `
+            <h1>Testing some Mailgun awesomness!</h1>
+            <h2>Order ID: <strong>${payment.transactionId}</strong></h2>
+            <p>Thank you for your order!</p>
+            <p>We appreciate your business and hope you enjoy your purchase.</p>
+            <p>If you have any questions or concerns, please don't hesitate to reach out to us.</p>
+            <p>Best regards,</p>
+            <p>Bistro Boss</p>            
+            `
+        })
+        .then(msg => console.log(msg)) // logs response data
+        .catch(err => console.error(err)); // logs any error
 
       res.send({ paymentResult, deleteResult });
 
@@ -394,7 +436,7 @@ async function run() {
 
     // Admin dashboard end
 
-    
+
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
@@ -405,16 +447,19 @@ async function run() {
   }
 }
 run().catch(console.dir);
+// Export for serverless deployment (Netlify Functions)
+module.exports.handler = serverless(app);
 
+// Local development listener (comment out for production/serverless)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/', (req, res) => {
+    res.send('boss is sitting')
+  })
 
-
-app.get('/', (req, res) => {
-  res.send('boss is sitting')
-})
-
-app.listen(port, () => {
-  console.log(`Bistro boss is sitting on port ${port}`);
-})
+  app.listen(port, () => {
+    console.log(`Bistro boss is sitting on port ${port}`);
+  })
+}
 
 
 /**

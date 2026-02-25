@@ -1,0 +1,17 @@
+[build]
+  command = "npm install"
+  functions = "."
+  publish = "public"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/index:handler"
+  status = 200
+  force = true
+
+[env]
+  [env.production]
+    environment = { NODE_ENV = "production" }
