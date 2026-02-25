@@ -1,17 +1,13 @@
 [build]
   command = "npm install"
-  functions = "."
+  functions = "functions"
   publish = "public"
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["mongodb"]
 
 [[redirects]]
-  from = "/api/*"
+  from = "/*"
   to = "/.netlify/functions/index:handler"
   status = 200
-  force = true
-
-[env]
-  [env.production]
-    environment = { NODE_ENV = "production" }
