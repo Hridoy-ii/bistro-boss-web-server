@@ -7,7 +7,9 @@
   node_bundler = "esbuild"
   external_node_modules = ["mongodb"]
 
+# Route all requests to the serverless function
 [[redirects]]
   from = "/*"
-  to = "/.netlify/functions/index:handler"
+  to = "/.netlify/functions/index"
   status = 200
+  force = true
