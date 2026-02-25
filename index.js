@@ -447,15 +447,17 @@ async function run() {
   }
 }
 run().catch(console.dir);
+
+// Root endpoint for status
+app.get('/', (req, res) => {
+  res.send('boss is sitting')
+})
+
 // Export for serverless deployment (Netlify Functions)
 module.exports.handler = serverless(app);
 
 // Local development listener (comment out for production/serverless)
 if (process.env.NODE_ENV !== 'production') {
-  app.get('/', (req, res) => {
-    res.send('boss is sitting')
-  })
-
   app.listen(port, () => {
     console.log(`Bistro boss is sitting on port ${port}`);
   })
