@@ -1,16 +1,14 @@
 const express = require('express');
-const serverless = require('serverless-http');
 const app = express();
 const cors = require('cors');
 const corsConfig = {
     origin: "*", // Allow all origins
-    Credential: true, // Allow credentials
+    credentials: true, // Allow credentials (note: lowercase 'c')
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Allow all
 }
 app.options('*', cors(corsConfig)); // Preflight request for all routes
 app.use(cors(corsConfig)); // Use the CORS configuration
 const jwt = require('jsonwebtoken');
-
 
 require('dotenv').config()
 const port = process.env.PORT || 10000;
@@ -19,7 +17,6 @@ const port = process.env.PORT || 10000;
 const formData = require('form-data');
 const Mailgun = require('mailgun.js');
 const mailgun = new Mailgun(formData);
-
 
 // Mailgun API key and domain
 const mg = mailgun.client({
@@ -33,13 +30,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 // Payment option end
 
 // middleware
-app.use(cors());
 app.use(express.json());
 
-
-
-const { MongoClient, ServerApiVersion, ObjectId, ObjectID } = require('mongodb');
-const { default: Stripe } = require('stripe');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.qwzhyfr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -53,7 +46,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
+        // Connect the client to the server
         await client.connect();
 
         const userCollection = client.db("bistroDB").collection("user");
@@ -85,9 +78,7 @@ async function run() {
                 req.decoded = decoded;
                 next();
             })
-
         }
-
 
         // verify Admin
         const verifyAdmin = async (req, res, next) => {
@@ -100,7 +91,6 @@ async function run() {
             }
             next();
         }
-
 
         // user related api collection
 
@@ -124,15 +114,12 @@ async function run() {
             let admin = false;
             if (user) {
                 admin = user?.role === 'admin';
-
             }
             res.send({ admin });
         })
 
         app.post('/users', async (req, res) => {
             const user = req.body;
-            // insert email id if doesn't exist
-            // 
             const query = { email: user.email }
             const existingUser = await userCollection.findOne(query);
             if (existingUser) {
@@ -155,7 +142,6 @@ async function run() {
             res.send(result);
         })
 
-
         // delete user
         app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
@@ -164,14 +150,13 @@ async function run() {
             res.send(result);
         })
 
-
         //  menu related api
         app.get('/menu', async (req, res) => {
             try {
                 const result = await menuCollection.find().toArray();
                 res.send(result);
             } catch (error) {
-                console.error("Error in PATCH /menu :", error);
+                console.error("Error in GET /menu :", error);
                 res.status(500).send({ error: error.message });
             }
         })
@@ -179,14 +164,13 @@ async function run() {
         app.get('/menu/:id', async (req, res) => {
             try {
                 const id = req.params.id;
-                const query = { _id: ObjectId(id) };
+                const query = { _id: new ObjectId(id) };
                 const result = await menuCollection.findOne(query);
                 res.send(result);
             } catch (error) {
-                console.error("Error in PATCH /menu/:id:", error);
+                console.error("Error in GET /menu/:id:", error);
                 res.status(500).send({ error: error.message });
             }
-
         })
 
         app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
@@ -199,7 +183,7 @@ async function run() {
         app.patch('/menu/:id', async (req, res) => {
             const item = req.body;
             const id = req.params.id;
-            const filter = { _id: ObjectId(id) }
+            const filter = { _id: new ObjectId(id) }
             const updateItem = {
                 $set: {
                     name: item.name,
@@ -214,56 +198,31 @@ async function run() {
             res.send(result);
         })
 
-
         // delete menu
         app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const query = { _id: ObjectId(id) };
+            const query = { _id: new ObjectId(id) };
             const result = await menuCollection.deleteOne(query);
             res.send(result);
         });
-
-        // admin user
-        // app.get('/users/admin/:email', verifyToken, verifyAdmin, async (req, res) => {
-        //   const email = req.params.email;
-        //   if (email !== req.decoded.email) {
-        //     return res.status(403).send({ message: 'forbidden access' });
-        //   }
-
-        //   const query = { email: email };
-        //   const user = await userCollection.findOne(query);
-        //   let admin = false;
-        //   if (user) {
-        //     admin = user?.role === 'admin';
-        //   }
-        //   res.send({ admin });
-        // })
-
-
-
 
         app.get('/reviews', async (req, res) => {
             const result = await reviewCollection.find().toArray();
             res.send(result);
         })
 
-
-
         // Carts collection
         app.get('/carts', async (req, res) => {
             try {
-
                 const email = req.query.email;
                 const query = { email: email };
                 const result = await cartsCollection.find(query).toArray();
                 res.send(result);
             } catch (error) {
-                console.error("Error in PATCH /carts :", error);
+                console.error("Error in GET /carts :", error);
                 res.status(500).send({ error: error.message });
             }
         })
-
-
 
         // carts collection
         app.post('/carts', async (req, res) => {
@@ -272,13 +231,10 @@ async function run() {
                 const result = await cartsCollection.insertOne(cartItem);
                 res.send(result);
             } catch (error) {
-                console.error("Error in PATCH /carts :", error);
+                console.error("Error in POST /carts :", error);
                 res.status(500).send({ error: error.message });
             }
-
         })
-
-
 
         // to delete a item
         app.delete('/carts/:id', async (req, res) => {
@@ -288,13 +244,11 @@ async function run() {
             res.send(result);
         })
 
-
         // Payment option start
         app.post('/create-payment-intent', async (req, res) => {
             try {
                 const { price } = req.body;
                 if (!price || price <= 0) {
-                    // Return a 400 status for an invalid price, not 500
                     return res.status(400).send({ error: "Invalid price" });
                 }
                 const amount = parseInt(price * 100);
@@ -320,58 +274,51 @@ async function run() {
             const query = { email: req.params.email }
             if (req.params.email !== req.decoded.email) {
                 return res.status(403).send({ message: "Forbidden Access" });
-            }// verify if anyone try to fetch another person's history
+            }
             const result = await paymentCollection.find(query).toArray();
             res.send(result);
-
-        }) // TODO: USE THIS API TO SHOW THE PAYMENT HISTORY
+        })
 
         app.post('/payments', async (req, res) => {
             const payment = req.body;
             const paymentResult = await paymentCollection.insertOne(payment);
 
-            // console.log('Payment info saved on database:', payment);
             // delete carefully each item from the cart
             const query = {
                 _id: {
-                    $in: payment.cartIds.map(id => ObjectId(id))
+                    $in: payment.cartIds.map(id => new ObjectId(id))
                 }
             };
 
             const deleteResult = await cartsCollection.deleteMany(query);
 
-
             // send email to the user about the payment confirmation
-
             mg.messages
                 .create(process.env.MAILGUN_DOMAIN, {
                     from: `Excited User <mailgun@${process.env.MAILGUN_DOMAIN}>`,
-                    to: ["nmohammad.hriidoy@gamil.com"],
-                    subject: "Mailgun test",
-                    text: "Testing some Mailgun awesomness and it says your order is confirm!",
+                    to: [payment.userEmail || "nmohammad.hriidoy@gmail.com"], // ✅ Fixed typo: gamil.com → gmail.com
+                    subject: "Order Confirmation - Bistro Boss",
+                    text: "Thank you for your order!",
                     html: `
-            <h1>Testing some Mailgun awesomness!</h1>
+            <h1>Thank you for your order!</h1>
             <h2>Order ID: <strong>${payment.transactionId}</strong></h2>
-            <p>Thank you for your order!</p>
             <p>We appreciate your business and hope you enjoy your purchase.</p>
             <p>If you have any questions or concerns, please don't hesitate to reach out to us.</p>
             <p>Best regards,</p>
             <p>Bistro Boss</p>            
             `
                 })
-                .then(msg => console.log(msg)) // logs response data
-                .catch(err => console.error(err)); // logs any error
+                .then(msg => console.log(msg))
+                .catch(err => console.error(err));
 
             res.send({ paymentResult, deleteResult });
-
         })
 
         //----------------- Payment option end --------------------------
 
-
         // -------------- Admin Dashboard Status --------
         app.get('/admin-status', verifyToken, verifyAdmin, async (req, res) => {
-            const users = await userCollection.estimatedDocumentCount(); // counting the total users 
+            const users = await userCollection.estimatedDocumentCount();
             const menuItems = await menuCollection.estimatedDocumentCount();
             const orders = await paymentCollection.estimatedDocumentCount();
 
@@ -395,7 +342,6 @@ async function run() {
                 revenue
             })
         })
-
 
         // aggregating database for showing multiple data info in a single api
         app.get('/order-stats', verifyToken, verifyAdmin, async (req, res) => {
@@ -436,13 +382,8 @@ async function run() {
 
         // Admin dashboard end
 
-
-
-        // Send a ping to confirm a successful connection
-        // await client.db("admin").command({ ping: 1 });
-        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
-        // Ensures that the client will close when you finish/error
+        // Do NOT close client here — keep connection alive for Render
         // await client.close();
     }
 }
@@ -450,8 +391,10 @@ run().catch(console.dir);
 
 // Root endpoint for status
 app.get('/', (req, res) => {
-    res.send('boss is sitting')
+    res.send('Bistro Boss API is running on Render! 🚀')
 })
 
-// Export for serverless deployment (Netlify Functions)
-exports.handler = serverless(app);
+// ✅ Start server for Render deployment
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running on port ${port}`);
+});
