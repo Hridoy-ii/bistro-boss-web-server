@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
 
 
 require('dotenv').config()
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 10000;
 
 // MailGun for sending email
 const formData = require('form-data');
