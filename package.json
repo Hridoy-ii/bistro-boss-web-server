@@ -1,11 +1,10 @@
 {
   "name": "bistro-boss-server",
   "version": "1.0.0",
-  "description": "BistroBoss is a comprehensive restaurant management system designed to streamline operations, enhance customer experience, and improve overall efficiency. The system leverages modern web technologies to provide a robust, scalable, and high-performance solution for managing complex data structures and interactions within a restaurant environment.",
+  "description": "BistroBoss is a comprehensive restaurant management system designed to streamline operations, enhance customer experience, and improve overall efficiency.",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --no-warnings index.js",
-    "build": "echo \"No build step for functions\"",
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,12 +18,13 @@
     "form-data": "^4.0.2",
     "jsonwebtoken": "^9.0.2",
     "mailgun.js": "^12.0.1",
-    "mongodb": "^4.17.2",
-    "punycode": "^2.3.1",
-    "serverless-http": "^3.2.0",
+    "mongodb": "^6.3.0",
     "stripe": "^17.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
